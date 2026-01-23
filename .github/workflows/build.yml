@@ -35,7 +35,7 @@ jobs:
         make -j$(nproc)
 
     - name: Upload UF2
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: zowie_mouse.uf2
         path: build/zowie_mouse.uf2
