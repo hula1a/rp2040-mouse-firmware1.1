@@ -13,6 +13,11 @@ add_executable(zowie_mouse
     src/usb_descriptors.c
 )
 
+# 添加头文件搜索路径
+target_include_directories(zowie_mouse PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+)
+
 target_link_libraries(zowie_mouse
     pico_stdlib
     tinyusb_device
@@ -23,5 +28,3 @@ pico_enable_stdio_usb(zowie_mouse 0)
 pico_enable_stdio_uart(zowie_mouse 0)
 
 pico_add_extra_outputs(zowie_mouse)
-
-target_sources(zowie_mouse PRIVATE src/usb_descriptors.c)
