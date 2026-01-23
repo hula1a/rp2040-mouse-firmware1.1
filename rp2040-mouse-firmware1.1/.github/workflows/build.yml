@@ -30,8 +30,9 @@ jobs:
     - name: Build
       run: |
         export PICO_SDK_PATH=$PWD/pico-sdk
-        mkdir build && cd build
-        cmake ..
+        mkdir build
+        cd build
+        cmake $GITHUB_WORKSPACE
         make -j$(nproc)
 
     - name: Upload UF2
