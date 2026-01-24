@@ -6,13 +6,11 @@
 #include "hardware/uart.h"
 #include "tusb.h"
 
-// UART 配置
 #define UART_ID     uart0
 #define BAUD_RATE   921600
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-// 鼠标报告结构（必须和 HID 描述符匹配）
 typedef struct __attribute__((packed)) {
     uint8_t buttons;
     int8_t  x;
@@ -21,35 +19,40 @@ typedef struct __attribute__((packed)) {
 } mouse_report_t;
 
 int main(void) {
-    // 初始化 TinyUSB
     tusb_init();
 
-    // 初始化 UART
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 
     uint8_t buffer[5];
     uint8_t idx = 0;
+    uint32_t last_auto = 0;
 
     while (true) {
-        // 处理 USB 事件
         tud_task();
 
-        // 读取 UART 数据
+        // 每秒自动右移一次（测试 HID 是否工作）
+        uint32_t now = to_ms_since_boot(get_absolute_time());
+        if (now - last_auto > 1000) {
+            if (tud_hid_ready()) {
+                mouse_report_t test = {0, 20, 0, 0};
+                tud_hid_report(0, &test, sizeof(test));
+            }
+            last_auto = now;
+        }
+
+        // UART 接收
         while (uart_is_readable(UART_ID)) {
             buffer[idx++] = uart_getc(UART_ID);
 
             if (idx >= 5) {
-                // 解析数据包
                 mouse_report_t report;
                 report.x       = (int8_t)buffer[0];
                 report.y       = (int8_t)buffer[1];
                 report.buttons = buffer[2];
                 report.wheel   = (int8_t)buffer[3];
-                // buffer[4] 保留
 
-                // 发送 HID 报告
                 if (tud_hid_ready()) {
                     tud_hid_report(0, &report, sizeof(report));
                 }
@@ -62,26 +65,13 @@ int main(void) {
     return 0;
 }
 
-//--------------------------------------------------------------------
-// TinyUSB HID 回调
-//--------------------------------------------------------------------
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
                                 hid_report_type_t report_type,
                                 uint8_t *buffer, uint16_t reqlen) {
-    (void)instance;
-    (void)report_id;
-    (void)report_type;
-    (void)buffer;
-    (void)reqlen;
     return 0;
 }
 
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                             hid_report_type_t report_type,
                             uint8_t const *buffer, uint16_t bufsize) {
-    (void)instance;
-    (void)report_id;
-    (void)report_type;
-    (void)buffer;
-    (void)bufsize;
 }
