@@ -1,26 +1,33 @@
-#ifndef _TUSB_CONFIG_H_
-#define _TUSB_CONFIG_H_
+cmake_minimum_required(VERSION 3.13)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+include(pico_sdk_import.cmake)
 
-#define CFG_TUSB_RHPORT0_MODE   OPT_MODE_DEVICE
-#define CFG_TUSB_OS             OPT_OS_NONE
+project(zowie_mouse C CXX ASM)
 
-#define CFG_TUD_CDC             0
-#define CFG_TUD_MSC             0
-#define CFG_TUD_HID             1
-#define CFG_TUD_MIDI            0
-#define CFG_TUD_VENDOR          0
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
-#define CFG_TUD_ENDPOINT0_SIZE  64
-#define CFG_TUD_HID_EP_BUFSIZE  16
+pico_sdk_init()
 
-#ifdef __cplusplus
-}
-#endif
+add_executable(zowie_mouse
+    src/main.c
+    src/usb_descriptors.c
+)
 
-#endif
+target_include_directories(zowie_mouse PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
 
+target_link_libraries(zowie_mouse
+    pico_stdlib
+    pico_unique_id
+    hardware_uart
+    tinyusb_device
+    tinyusb_board
+)
 
+pico_enable_stdio_usb(zowie_mouse 0)
+pico_enable_stdio_uart(zowie_mouse 0)
+
+pico_add_extra_outputs(zowie_mouse)
