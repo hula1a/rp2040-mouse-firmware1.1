@@ -13,10 +13,12 @@ add_executable(zowie_mouse
     src/usb_descriptors.c
 )
 
+# 包含 tusb_config.h 所在的根目录
 target_include_directories(zowie_mouse PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
+# 链接库：注意加入了 hardware_uart
 target_link_libraries(zowie_mouse
     pico_stdlib
     hardware_uart
@@ -24,6 +26,7 @@ target_link_libraries(zowie_mouse
     tinyusb_board
 )
 
+# 禁用 stdio 的 USB/UART 输出，防止干扰
 pico_enable_stdio_usb(zowie_mouse 0)
 pico_enable_stdio_uart(zowie_mouse 0)
 
