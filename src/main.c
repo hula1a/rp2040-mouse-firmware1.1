@@ -1,10 +1,5 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
-#include "hardware/irq.h"
 #include "tusb.h"
 
 #define UART_ID     uart0
@@ -20,49 +15,25 @@ typedef struct __attribute__((packed)) {
 } mouse_report_t;
 
 int main(void) {
-    // 初始化标准库（时钟等）
-    stdio_init_all();
-
-    // 初始化 USB
     tusb_init();
 
-    // 初始化 UART
     uart_init(UART_ID, BAUD_RATE);
-
-    // 设置引脚功能
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-
-    // 设置 UART 格式：8位数据，1位停止，无校验
     uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
-
-    // 启用 FIFO
     uart_set_fifo_enabled(UART_ID, true);
-
-    // 关闭硬件流控
     uart_set_hw_flow(UART_ID, false, false);
-
-    uint8_t buffer[5];
-    uint8_t idx = 0;
 
     while (true) {
         tud_task();
 
-        while (uart_is_readable(UART_ID)) {
-            buffer[idx++] = uart_getc(UART_ID);
+        // 只要收到任何 1 字节，就移动鼠标
+        if (uart_is_readable(UART_ID)) {
+            uart_getc(UART_ID);  // 读掉
 
-            if (idx >= 5) {
-                mouse_report_t report;
-                report.x       = (int8_t)buffer[0];
-                report.y       = (int8_t)buffer[1];
-                report.buttons = buffer[2];
-                report.wheel   = (int8_t)buffer[3];
-
-                if (tud_hid_ready()) {
-                    tud_hid_report(0, &report, sizeof(report));
-                }
-
-                idx = 0;
+            if (tud_hid_ready()) {
+                mouse_report_t report = {0, 10, 0, 0};  // 右移 10
+                tud_hid_report(0, &report, sizeof(report));
             }
         }
     }
