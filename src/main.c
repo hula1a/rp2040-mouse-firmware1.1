@@ -27,22 +27,10 @@ int main(void) {
 
     uint8_t buffer[5];
     uint8_t idx = 0;
-    uint32_t last_auto = 0;
 
     while (true) {
         tud_task();
 
-        // 每秒自动右移一次（测试 HID 是否工作）
-        uint32_t now = to_ms_since_boot(get_absolute_time());
-        if (now - last_auto > 1000) {
-            if (tud_hid_ready()) {
-                mouse_report_t test = {0, 20, 0, 0};
-                tud_hid_report(0, &test, sizeof(test));
-            }
-            last_auto = now;
-        }
-
-        // UART 接收
         while (uart_is_readable(UART_ID)) {
             buffer[idx++] = uart_getc(UART_ID);
 
