@@ -4,6 +4,7 @@
 
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
+#include "hardware/irq.h"
 #include "tusb.h"
 
 #define UART_ID     uart0
@@ -19,11 +20,27 @@ typedef struct __attribute__((packed)) {
 } mouse_report_t;
 
 int main(void) {
+    // 初始化标准库（时钟等）
+    stdio_init_all();
+
+    // 初始化 USB
     tusb_init();
 
+    // 初始化 UART
     uart_init(UART_ID, BAUD_RATE);
+
+    // 设置引脚功能
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+
+    // 设置 UART 格式：8位数据，1位停止，无校验
+    uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
+
+    // 启用 FIFO
+    uart_set_fifo_enabled(UART_ID, true);
+
+    // 关闭硬件流控
+    uart_set_hw_flow(UART_ID, false, false);
 
     uint8_t buffer[5];
     uint8_t idx = 0;
