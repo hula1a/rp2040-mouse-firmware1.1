@@ -1,42 +1,24 @@
-name: Build RP2040 Firmware
+#ifndef _TUSB_CONFIG_H_
+#define _TUSB_CONFIG_H_
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+#define CFG_TUSB_RHPORT0_MODE   OPT_MODE_DEVICE
+#define CFG_TUSB_OS             OPT_OS_NONE
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+#define CFG_TUD_CDC             0
+#define CFG_TUD_MSC             0
+#define CFG_TUD_HID             1
+#define CFG_TUD_MIDI            0
+#define CFG_TUD_VENDOR          0
 
-    - name: Install ARM toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
+#define CFG_TUD_ENDPOINT0_SIZE  64
+#define CFG_TUD_HID_EP_BUFSIZE  16
 
-    - name: Checkout Pico SDK
-      run: |
-        git clone -b master https://github.com/raspberrypi/pico-sdk.git
-        cd pico-sdk
-        git submodule update --init
+#ifdef __cplusplus
+}
+#endif
 
-    - name: Build
-      run: |
-        export PICO_SDK_PATH=$PWD/pico-sdk
-        mkdir build
-        cd build
-        cmake $GITHUB_WORKSPACE
-        make -j$(nproc)
-
-    - name: Upload UF2
-      uses: actions/upload-artifact@v4
-      with:
-        name: zowie_mouse.uf2
-        path: build/zowie_mouse.uf2
+#endif
