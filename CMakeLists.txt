@@ -19,9 +19,14 @@ target_include_directories(zowie_mouse PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
+# 关键：禁用 USB CDC
+target_compile_definitions(zowie_mouse PRIVATE
+    PICO_STDIO_USB=0
+    PICO_STDIO_UART=0
+)
+
 target_link_libraries(zowie_mouse
     pico_stdlib
-    pico_unique_id
     hardware_uart
     tinyusb_device
     tinyusb_board
