@@ -5,69 +5,83 @@
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "tusb.h"
-// 必须包含这个，否则报错 unknown type name 'hid_report_type_t'
-#include "class/hid/hid_device.h"
 
-#define UART_ID uart0
-#define BAUD_RATE 921600
+// UART 配置
+#define UART_ID     uart0
+#define BAUD_RATE   921600
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-void hid_task(void);
+// 鼠标报告结构（必须和 HID 描述符匹配）
+typedef struct __attribute__((packed)) {
+    uint8_t buttons;
+    int8_t  x;
+    int8_t  y;
+    int8_t  wheel;
+} mouse_report_t;
 
 int main(void) {
-    // 1. 设置时钟 (必须!)
-    set_sys_clock_khz(125000, true);
-
-    // 2. 初始化 USB
+    // 初始化 TinyUSB
     tusb_init();
 
-    // 3. 初始化 UART
+    // 初始化 UART
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 
-    while (1) {
-        // USB 任务 (必须频繁调用)
+    uint8_t buffer[5];
+    uint8_t idx = 0;
+
+    while (true) {
+        // 处理 USB 事件
         tud_task();
 
-        // 自己的逻辑
-        hid_task();
-    }
-}
+        // 读取 UART 数据
+        while (uart_is_readable(UART_ID)) {
+            buffer[idx++] = uart_getc(UART_ID);
 
-void hid_task(void) {
-    if (uart_is_readable(UART_ID)) {
-        static uint8_t buffer[5];
-        static uint8_t idx = 0;
+            if (idx >= 5) {
+                // 解析数据包
+                mouse_report_t report;
+                report.x       = (int8_t)buffer[0];
+                report.y       = (int8_t)buffer[1];
+                report.buttons = buffer[2];
+                report.wheel   = (int8_t)buffer[3];
+                // buffer[4] 保留
 
-        buffer[idx] = uart_getc(UART_ID);
-        idx++;
+                // 发送 HID 报告
+                if (tud_hid_ready()) {
+                    tud_hid_report(0, &report, sizeof(report));
+                }
 
-        if (idx >= 5) {
-            // 只有当 USB 准备好时才处理
-            if (tud_hid_ready()) {
-                uint8_t report[4];
-                // 协议: [dx, dy, buttons, wheel, rsv]
-                report[0] = buffer[2];           // buttons
-                report[1] = (uint8_t)buffer[0];  // x
-                report[2] = (uint8_t)buffer[1];  // y
-                report[3] = (uint8_t)buffer[3];  // wheel
-
-                // 发送
-                tud_hid_report(0, report, sizeof(report));
+                idx = 0;
             }
-            idx = 0;
         }
     }
-}
 
-// 回调函数
-uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
-    (void) instance; (void) report_id; (void) report_type; (void) buffer; (void) reqlen;
     return 0;
 }
 
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
-    (void) instance; (void) report_id; (void) report_type; (void) buffer; (void) bufsize;
+//--------------------------------------------------------------------
+// TinyUSB HID 回调
+//--------------------------------------------------------------------
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
+                                hid_report_type_t report_type,
+                                uint8_t *buffer, uint16_t reqlen) {
+    (void)instance;
+    (void)report_id;
+    (void)report_type;
+    (void)buffer;
+    (void)reqlen;
+    return 0;
+}
+
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
+                            hid_report_type_t report_type,
+                            uint8_t const *buffer, uint16_t bufsize) {
+    (void)instance;
+    (void)report_id;
+    (void)report_type;
+    (void)buffer;
+    (void)bufsize;
 }
