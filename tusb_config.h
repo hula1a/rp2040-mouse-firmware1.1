@@ -1,16 +1,30 @@
-#ifndef _TUSB_CONFIG_H_
-#define _TUSB_CONFIG_H_
+cmake_minimum_required(VERSION 3.13)
 
-#define CFG_TUSB_RHPORT0_MODE   OPT_MODE_DEVICE
-#define CFG_TUSB_OS             OPT_OS_NONE
+include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-// 只启用 HID，禁用其他
-#define CFG_TUD_HID             1
-#define CFG_TUD_CDC             0
-#define CFG_TUD_MSC             0
-#define CFG_TUD_MIDI            0
-#define CFG_TUD_VENDOR          0
+project(zowie_mouse C CXX ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
-#define CFG_TUD_HID_EP_BUFSIZE  8
+pico_sdk_init()
 
-#endif
+add_executable(zowie_mouse
+    main.c
+    usb_descriptors.c
+)
+
+# 禁用所有 stdio（不要 CDC）
+pico_enable_stdio_usb(zowie_mouse 0)
+pico_enable_stdio_uart(zowie_mouse 0)
+
+target_include_directories(zowie_mouse PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+
+target_link_libraries(zowie_mouse
+    pico_stdlib
+    hardware_uart
+    hardware_irq
+    tinyusb_device
+    tinyusb_board
+)
+
+pico_add_extra_outputs(zowie_mouse)
