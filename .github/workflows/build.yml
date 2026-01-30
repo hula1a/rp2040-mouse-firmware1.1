@@ -2,37 +2,40 @@ name: Build RP2040 Firmware
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install toolchain
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
+        sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential libstdc++-arm-none-eabi-newlib
 
     - name: Clone Pico SDK
       run: |
-        git clone https://github.com/raspberrypi/pico-sdk.git
+        git clone https://github.com/raspberrypi/pico-sdk.git --branch master
         cd pico-sdk
         git submodule update --init
 
-    - name: Build
+    - name: Build firmware
       run: |
-        export PICO_SDK_PATH=$PWD/pico-sdk
+        export PICO_SDK_PATH=${{ github.workspace }}/pico-sdk
         mkdir build
         cd build
         cmake ..
         make -j4
 
-    - name: Upload UF2
+    - name: Upload UF2 artifact
       uses: actions/upload-artifact@v4
       with:
-        name: zowie_mouse.uf2
-        path: build/zowie_mouse.uf2
+        name: zowie_hid_mouse_firmware
+        path: build/zowie_hid_mouse.uf2
