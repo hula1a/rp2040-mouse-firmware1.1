@@ -1,26 +1,31 @@
 #include "pico/stdlib.h"
-#include "bsp/board.h"
 #include "tusb.h"
-#include <math.h>
+
+// 获取毫秒数（替代 board_millis）
+static inline uint32_t get_millis(void) {
+    return to_ms_since_boot(get_absolute_time());
+}
 
 int main() {
-    board_init();
+    // Pico SDK 初始化
+    stdio_init_all();
     tusb_init();
 
     uint32_t counter = 0;
+    uint32_t last = 0;
 
     while (1) {
         tud_task();
 
         // 每 10ms 发送一次
-        static uint32_t last = 0;
-        if (board_millis() - last >= 10) {
-            last = board_millis();
+        uint32_t now = get_millis();
+        if (now - last >= 10) {
+            last = now;
 
             if (tud_hid_ready()) {
                 counter++;
 
-                // 画圆：X 和 Y 交替变化
+                // 画方形：右→下→左→上
                 int8_t dx = 0;
                 int8_t dy = 0;
 
