@@ -20,10 +20,9 @@ target_include_directories(zowie_hid_mouse PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
 target_link_libraries(zowie_hid_mouse
     pico_stdlib
-    pico_unique_id
+    pico_time
     hardware_uart
     hardware_irq
-    hardware_clocks
     tinyusb_device
     tinyusb_board
 )
