@@ -3,36 +3,43 @@
 #include "hardware/irq.h"
 #include "tusb.h"
 
-// 先用低波特率测试，确认功能正常后再改回 921600
+// 高速串口传输，支持 1000Hz+ 轮询率
 #define UART_ID      uart0
-#define BAUD_RATE    115200  // 先降速测试！
+#define BAUD_RATE    921600  // 高速模式
 #define UART_TX_PIN  0
 #define UART_RX_PIN  1
 
-// 协议：[0xAA, dx, dy, btn, wheel, reserved] = 6 字节
+// 协议：[0xAA, dx, dy, btn, wheel, checksum] = 6 字节
+// checksum = (dx + dy + btn + wheel) & 0xFF
 #define HEADER_BYTE  0xAA
 #define PKT_LEN      6
 
-// 环形缓冲区
+// 环形缓冲区（使用 uint8_t 保证原子性）
 #define RX_BUF_SIZE  64
 static volatile uint8_t rx_buffer[RX_BUF_SIZE];
-static volatile uint16_t rx_head = 0;
-static volatile uint16_t rx_tail = 0;
+static volatile uint8_t rx_head = 0;  // 改为 uint8_t
+static volatile uint8_t rx_tail = 0;  // 改为 uint8_t
+
+// 统计信息（可选，用于调试）
+static volatile uint32_t packet_count = 0;
+static volatile uint32_t error_count = 0;
 
 // UART 中断处理
 void on_uart_rx() {
     while (uart_is_readable(UART_ID)) {
         uint8_t ch = uart_getc(UART_ID);
-        uint16_t next = (rx_head + 1) % RX_BUF_SIZE;
+        uint8_t next = (rx_head + 1) % RX_BUF_SIZE;  // 改为 uint8_t
         if (next != rx_tail) {
             rx_buffer[rx_head] = ch;
             rx_head = next;
+        } else {
+            error_count++;  // 缓冲区溢出计数
         }
     }
 }
 
 // 缓冲区可用字节数
-static inline uint16_t ring_available() {
+static inline uint8_t ring_available() {  // 返回值改为 uint8_t
     return (rx_head - rx_tail + RX_BUF_SIZE) % RX_BUF_SIZE;
 }
 
@@ -84,12 +91,21 @@ int main() {
                 pkt[i] = ring_read();
             }
 
-            // 解析：[0xAA, dx, dy, btn, wheel, reserved]
+            // 解析：[0xAA, dx, dy, btn, wheel, checksum]
             int8_t dx       = (int8_t)pkt[1];
             int8_t dy       = (int8_t)pkt[2];
             uint8_t buttons = pkt[3];
             int8_t wheel    = (int8_t)pkt[4];
+            uint8_t checksum = pkt[5];
 
+            // 校验和验证
+            uint8_t calc_checksum = (pkt[1] + pkt[2] + pkt[3] + pkt[4]) & 0xFF;
+            if (checksum != calc_checksum) {
+                error_count++;
+                continue;  // 校验失败，继续寻找下一个帧头
+            }
+
+            // 发送 USB HID 报告（保持 Zowie 鼠标格式）
             if (tud_hid_ready()) {
                 uint8_t report[4] = {
                     buttons,
@@ -98,6 +114,7 @@ int main() {
                     (uint8_t)wheel
                 };
                 tud_hid_n_report(0, 0, report, 4);
+                packet_count++;
             }
         }
     }
