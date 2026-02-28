@@ -4,10 +4,10 @@
 #include "tusb.h"
 
 // 高速串口传输，支持 1000Hz+ 轮询率
-#define UART_ID      uart0
-#define BAUD_RATE    921600  // 高速模式
-#define UART_TX_PIN  0
-#define UART_RX_PIN  1
+#define UART_ID      uart0       // 保持 UART0
+#define BAUD_RATE    115200      // 稳定高速模式（CH340 兼容）
+#define UART_TX_PIN  0           // 保持 GPIO0
+#define UART_RX_PIN  1           // 保持 GPIO1
 
 // 协议：[0xAA, dx, dy, btn, wheel, checksum] = 6 字节
 // checksum = (dx + dy + btn + wheel) & 0xFF
@@ -17,8 +17,8 @@
 // 环形缓冲区（使用 uint8_t 保证原子性）
 #define RX_BUF_SIZE  64
 static volatile uint8_t rx_buffer[RX_BUF_SIZE];
-static volatile uint8_t rx_head = 0;  // 改为 uint8_t
-static volatile uint8_t rx_tail = 0;  // 改为 uint8_t
+static volatile uint8_t rx_head = 0;
+static volatile uint8_t rx_tail = 0;
 
 // 统计信息（可选，用于调试）
 static volatile uint32_t packet_count = 0;
@@ -28,7 +28,7 @@ static volatile uint32_t error_count = 0;
 void on_uart_rx() {
     while (uart_is_readable(UART_ID)) {
         uint8_t ch = uart_getc(UART_ID);
-        uint8_t next = (rx_head + 1) % RX_BUF_SIZE;  // 改为 uint8_t
+        uint8_t next = (rx_head + 1) % RX_BUF_SIZE;
         if (next != rx_tail) {
             rx_buffer[rx_head] = ch;
             rx_head = next;
@@ -39,7 +39,7 @@ void on_uart_rx() {
 }
 
 // 缓冲区可用字节数
-static inline uint8_t ring_available() {  // 返回值改为 uint8_t
+static inline uint8_t ring_available() {
     return (rx_head - rx_tail + RX_BUF_SIZE) % RX_BUF_SIZE;
 }
 
@@ -56,9 +56,10 @@ static inline uint8_t ring_peek() {
 }
 
 int main() {
-    stdio_init_all();
-
-    // UART 初始化
+    // ⚠️ 关键修改：不调用 stdio_init_all()，避免它占用 GPIO0/1
+    // stdio_init_all();  // ← 删除这行！
+    
+    // UART 初始化（必须在 stdio_init_all() 之后，或者不调用 stdio_init_all()）
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
@@ -106,7 +107,7 @@ int main() {
             }
 
             // 发送 USB HID 报告（保持 Zowie 鼠标格式）
-            if (tud_hid_ready()) {
+            if (tud_hid_ready() && tud_mounted()) {
                 uint8_t report[4] = {
                     buttons,
                     (uint8_t)dx,
