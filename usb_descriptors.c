@@ -1,7 +1,7 @@
 #include "tusb.h"
 #include <string.h>
 
-// ========== Ninjutso Sora (当前模式 5B2F) 1:1 克隆配置 ==========
+// ========== Ninjutso Sora (当前模式 5B2F) 1:1 纯净克隆配置 ==========
 #define SORA_VID   0x248A
 #define SORA_PID   0x5B2F
 
@@ -12,15 +12,13 @@ tusb_desc_device_t const desc_device = {
     .bDeviceClass       = 0x00,
     .bDeviceSubClass    = 0x00,
     .bDeviceProtocol    = 0x00,
-    .bMaxPacketSize0    = 0x08,   
+    .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
     .idVendor           = SORA_VID,
     .idProduct          = SORA_PID,
-    .bcdDevice          = 0x0122, // 固件版本号精准还原为 REV_0122
+    .bcdDevice          = 0x0122, // 固件版本号 REV_0122
     .iManufacturer      = 0x01,   // String Descriptor 1
     .iProduct           = 0x02,   // String Descriptor 2
-    
-    // 🚨 绝对纯净：原厂没有序列号，防止画蛇添足被查杀
-    .iSerialNumber      = 0x00,   
+    .iSerialNumber      = 0x00,   // 原厂纯净态：无硬件序列号，填 0x00 防被查特征
     .bNumConfigurations = 0x01
 };
 
@@ -28,7 +26,7 @@ uint8_t const* tud_descriptor_device_cb(void) {
     return (uint8_t const*)&desc_device;
 }
 
-// 隐藏的高级 16-bit 原始电竞鼠标数据通道
+// 高级 16-bit 原始电竞鼠标数据通道
 uint8_t const desc_hid_report[] = {
     0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
     0x09, 0x02,        // Usage (Mouse)
@@ -37,13 +35,13 @@ uint8_t const desc_hid_report[] = {
     0x09, 0x01,        //   Usage (Pointer)
     0xA1, 0x00,        //   Collection (Physical)
     0x05, 0x09,        //     Usage Page (Button)
-    0x19, 0x01,        //     Usage Minimum (0x01)
-    0x29, 0x05,        //     Usage Maximum (0x05)
+    0x19, 0x01,        //     Usage Minimum (1)
+    0x29, 0x05,        //     Usage Maximum (5)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
     0x95, 0x05,        //     Report Count (5)
     0x75, 0x01,        //     Report Size (1)
-    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear)
+    0x81, 0x02,        //     Input (Data,Var,Abs)
     0x95, 0x01,        //     Report Count (1)
     0x75, 0x03,        //     Report Size (3)
     0x81, 0x03,        //     Input (Const)
@@ -54,13 +52,13 @@ uint8_t const desc_hid_report[] = {
     0x26, 0xFF, 0x7F,  //     Logical Maximum (32767)
     0x75, 0x10,        //     Report Size (16)
     0x95, 0x02,        //     Report Count (2)
-    0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear)
+    0x81, 0x06,        //     Input (Data,Var,Rel)
     0x09, 0x38,        //     Usage (Wheel)
     0x15, 0x81,        //     Logical Minimum (-127)
     0x25, 0x7F,        //     Logical Maximum (127)
     0x75, 0x08,        //     Report Size (8)
     0x95, 0x01,        //     Report Count (1)
-    0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear)
+    0x81, 0x06,        //     Input (Data,Var,Rel)
     0xC0,              //   End Collection
     0xC0               // End Collection
 };
@@ -85,7 +83,7 @@ uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
     return desc_configuration;
 }
 
-// 提取的文本描述签发区 (纯净还原，不带序列号函数)
+// 提取的文本描述签发区 (彻底不提供序列号模块)
 char const* string_desc_arr[] = {
     (const char[]){0x09, 0x04}, // 0x0409 English
     "XCTECH",                  // 1: Manufacturer
@@ -102,7 +100,6 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
         memcpy(&_desc_str[1], string_desc_arr[0], 2);
         chr_count = 1;
     } else {
-        // 防止系统越界索要序列号引发崩溃
         if (index >= sizeof(string_desc_arr) / sizeof(string_desc_arr[0])) return NULL;
         
         const char* str = string_desc_arr[index];
@@ -115,4 +112,14 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 
     _desc_str[0] = (TUSB_DESC_STRING << 8) | (2 * chr_count + 2);
     return _desc_str;
+}
+
+// ======== 补回缺失的回调函数（防止编译失败）========
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
+    (void)instance; (void)report_id; (void)report_type; (void)buffer; (void)reqlen;
+    return 0;
+}
+
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
+    (void)instance; (void)report_id; (void)report_type; (void)buffer; (void)bufsize;
 }
